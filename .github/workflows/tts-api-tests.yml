@@ -1,4 +1,4 @@
-name: API Tests (Newman)
+name: TTS API Testing once
 
 on:
   push:
