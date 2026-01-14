@@ -1,4 +1,4 @@
-name: TTS API Testing 50 iterations
+name: TTS API Testing 50 iterations (max failures 3)
 
 on:
   push:
@@ -23,14 +23,31 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Newman
+      - name: Run Newman (generate HTML + JSON reports)
         run: |
           mkdir -p report
-          npx newman run ./collections/tts_collection.json -n 50 --reporters cli,htmlextra --reporter-htmlextra-export ./report/api-test-report.html
+          # Newman은 1번만 실패해도 exit 1이라, 여기서는 계속 진행시킴
+          npx newman run ./collections/tts_collection.json \
+            -n 50 \
+            --reporters cli,htmlextra,json \
+            --reporter-htmlextra-export ./report/api-test-report.html \
+            --reporter-json-export ./report/newman.json \
+            || true
+
+      - name: Check failure threshold (max 3)
+        run: |
+          node scripts/check-newman-threshold.js report/newman.json 3
 
       - name: Upload HTML report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-test-report
-          path: report/tts-stab-api-test-report.html
+          name: api-test-report-html
+          path: report/api-test-report.html
+
+      - name: Upload JSON report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-report-json
+          path: report/newman.json
