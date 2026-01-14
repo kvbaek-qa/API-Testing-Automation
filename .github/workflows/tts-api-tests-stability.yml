@@ -33,7 +33,7 @@ jobs:
 
       - name: Check failure threshold (max 3)
         run: |
-          node scripts/check-newman-threshold-cli.js report/newman.log 3
+          node scripts/check-newman-threshold.js report/newman.log 3
 
       - name: Upload HTML report artifact
         if: always()
