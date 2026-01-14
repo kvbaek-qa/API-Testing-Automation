@@ -1,45 +1,35 @@
-// scripts/check-newman-threshold.js
+// scripts/check-newman-threshold-cli.js
 const fs = require("fs");
 
-const reportPath = process.argv[2] || "report/newman.json";
+const logFile = process.argv[2];
 const threshold = Number(process.argv[3] ?? 3);
 
-if (!fs.existsSync(reportPath)) {
-  console.error(`[FAIL] Newman JSON report not found: ${reportPath}`);
+if (!fs.existsSync(logFile)) {
+  console.error(`[FAIL] Newman log file not found: ${logFile}`);
   process.exit(1);
 }
 
-let data;
-try {
-  data = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-} catch (e) {
-  console.error(`[FAIL] Cannot parse JSON report: ${reportPath}`);
-  console.error(e);
+const content = fs.readFileSync(logFile, "utf8");
+
+// Newman summary 예시에서 failures 숫자 추출
+const match = content.match(/failures:\s*(\d+)/i);
+
+if (!match) {
+  console.error("[FAIL] Could not find failure count in Newman output");
   process.exit(1);
 }
 
-// newman json reporter structure: data.run.failures is an array
-const failures = data?.run?.failures ?? [];
-const failureCount = failures.length;
+const failureCount = Number(match[1]);
 
 console.log(`Newman failure count: ${failureCount}`);
 console.log(`Allowed max failures: ${threshold}`);
 
-if (failureCount > 0) {
-  console.log("---- Failure summary (up to 10) ----");
-  failures.slice(0, 10).forEach((f, idx) => {
-    const name = f?.source?.name || "(unknown item)";
-    const assertion = f?.error?.name || f?.error?.message || "(unknown error)";
-    console.log(`${idx + 1}. ${name} -> ${assertion}`);
-  });
-}
-
 if (failureCount > threshold) {
   console.error(
-    `[FAIL] Failure count (${failureCount}) exceeded threshold (${threshold}).`
+    `[FAIL] Failure count (${failureCount}) exceeded threshold (${threshold})`
   );
   process.exit(1);
 }
 
-console.log("[PASS] Failure count is within threshold.");
+console.log("[PASS] Failure count is within threshold");
 process.exit(0);
