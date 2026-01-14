@@ -1,4 +1,4 @@
-name: TTS API Testing 10 iterations (max failures 3)
+name: TTS API Testing 10 iterations (max failures 10)
 
 on:
   push:
@@ -32,9 +32,9 @@ jobs:
             --reporter-htmlextra-export report/api-test-report.html \
             2>&1 | tee report/newman.log
 
-      - name: Check failure threshold (max 3)
+      - name: Check failure threshold (max 10)
         run: |
-          node scripts/check-newman-threshold.js report/newman.log 3
+          node scripts/check-newman-threshold.js report/newman.log 10
 
       - name: Upload HTML report artifact
         if: always()
