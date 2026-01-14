@@ -1,0 +1,463 @@
+{
+	"info": {
+		"_postman_id": "1c436c70-6e5f-43f2-bef8-f291be9a93aa",
+		"name": "TTS Test Engines",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30899347"
+	},
+	"item": [
+		{
+			"name": "TTS[ 2025.07 Updated ]",
+			"item": [
+				{
+					"name": "[Cloud API] spw-jhb-normal-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"d1e84565-06aa-5d2a-8ae4-97b52a6bdecf\",\n    \"name\": \"cloudapi_한국어남성자연스러운\",\n    \"item\": [\"spw-jhb-normal-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            } ,\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_JHB_Normal\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-jyw-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-jyw\",\n    \"item\": [\"spw-rftap-jyw-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_JYW_Audiobook\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-jsm-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-jsm\",\n    \"item\": [\"spw-rftap-jsm-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_JSM\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-jej-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-jej\",\n    \"item\": [\"spw-rftap-jej-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_JEJ\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-mej-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-mej\",\n    \"item\": [\"spw-rftap-mej-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_MEJ\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-sjs-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-sjs\",\n    \"item\": [\"spw-rftap-sjs-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_SJS\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-yny-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-yny\",\n    \"item\": [\"spw-rftap-yny-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_YNY_Counselor\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[Cloud API] spw-rftap-ceh-stream",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"app_id\": \"maum_ai_cloud_api\",\n    \"name\": \"cloudapi_tts_rftap-ceh\",\n    \"item\": [\"spw-rftap-ceh-stream\"],\n    \"param\": [\n        {\n            \"lang\": 1,\n            \"sampleRate\": 22050,\n            \"text\": \"{{tts_text}}\",\n            \"speaker\": 0,\n            \"audioEncoding\": 0,\n            \"durationRate\": 1.0,\n            \"emotion\": 0,\n            \"padding\": {\n                \"begin\": 0.1,\n                \"end\": 0.1\n            },\n            \"profile\": \"none\",\n            \"speakerName\": \"rftap_CEH\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "https://norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[AI Human M4] 조한비 TTS",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"app_id\": \"454a3894-b0a0-52b6-b937-4d2165e01530\",\r\n    \"name\": \"hb_jo tts\",\r\n    \"item\": [\r\n        \"spw-hbjo-stream\"\r\n    ],\r\n    \"param\": [\r\n        {\r\n        \"lang\": 1,\r\n        \"sampleRate\": 22050,\r\n        \"text\": \"{{tts_text}}\",\r\n        \"speaker\": 0,\r\n        \"audioEncoding\": 0,\r\n        \"durationRate\": 1,\r\n        \"emotion\": 0,\r\n        \"padding\": {\r\n            \"begin\": 1,\r\n            \"end\": 1\r\n        },\r\n        \"profile\": \"none\",\r\n        \"speakerName\": \"hb_jo\"\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[AI Human M4] 임혜정 TTS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"app_id\": \"20afcac5-2093-529e-a058-7e57c0246807\",\r\n    \"name\": \"hjlim_voice_tts\",\r\n    \"item\": [\r\n        \"spw-hjlim-stream\"\r\n    ],\r\n    \"param\": [\r\n        {\r\n            \"lang\": 1,\r\n            \"sampleRate\": 22050,\r\n            \"text\": \"{{tts_text}}\",\r\n            \"speaker\": 0,\r\n            \"audioEncoding\": 0,\r\n            \"durationRate\": 1,\r\n            \"emotion\": 0,\r\n            \"padding\": {\r\n                \"begin\": 0.1,\r\n                \"end\": 0.1\r\n            },\r\n            \"profile\": \"none\",\r\n            \"speakerName\": \"hj_lim\"\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[AI Human M4] 정하윤 TTS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"app_id\": \"bf5d6ec0-65cd-5b8c-b711-2a114fb69acd\",\r\n    \"name\": \"spw-du-jhy-stream\",\r\n    \"item\": [\r\n        \"spw-du-jhy-stream\"\r\n    ],\r\n    \"param\": [\r\n        {\r\n            \"lang\": 1,\r\n            \"sampleRate\": 22050,\r\n            \"text\": \"{{tts_text}}\",\r\n            \"speaker\": 0,\r\n            \"audioEncoding\": 0,\r\n            \"durationRate\": 1,\r\n            \"emotion\": 0,\r\n            \"padding\": {\r\n                \"begin\": 0.1,\r\n                \"end\": 0.1\r\n            },\r\n            \"profile\": \"none\",\r\n            \"speakerName\": \"du_jhy\"\r\n        }\r\n    ]\r\n}\r\n\r\n"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "[AI Human M4] 송지은 TTS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"app_id\": \"c5fdb735-27de-5588-85ad-e3b880c759ec\",\r\n    \"name\": \"aihuman_tts_jesong\",\r\n    \"item\": [\r\n        \"spw-jesong-stream\"\r\n    ],\r\n    \"param\": [\r\n        {\r\n            \"lang\": 1,\r\n            \"sampleRate\": 22050,\r\n            \"text\": \"{{tts_text}}\",\r\n            \"speaker\": 0,\r\n            \"audioEncoding\": 0,\r\n            \"durationRate\": 1,\r\n            \"emotion\": 0,\r\n            \"padding\": {\r\n                \"begin\": 0.1,\r\n                \"end\": 0.1\r\n            },\r\n            \"profile\": \"none\",\r\n            \"speakerName\": \"jesong\"\r\n        }\r\n    ]\r\n}\r\n\r\n"
+						},
+						"url": {
+							"raw": "https://ejn-norchestra.maum.ai/harmonize/dosmart",
+							"protocol": "https",
+							"host": [
+								"ejn-norchestra",
+								"maum",
+								"ai"
+							],
+							"path": [
+								"harmonize",
+								"dosmart"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					"const now = new Date();\r",
+					"\r",
+					"const yyyy = now.getFullYear();\r",
+					"const mm = String(now.getMonth() + 1).padStart(2, '0');\r",
+					"const dd = String(now.getDate()).padStart(2, '0');\r",
+					"\r",
+					"function generateUUID() {\r",
+					"    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {\r",
+					"        const r = Math.random() * 16 | 0;\r",
+					"        const v = c === 'x' ? r : (r & 0x3 | 0x8);\r",
+					"        return v.toString(16);\r",
+					"    });\r",
+					"}\r",
+					"\r",
+					"const uuid = generateUUID();\r",
+					"\r",
+					"const ttsText =\r",
+					"  `${yyyy}년 ${mm}월 ${dd}일자 데일리 테스트 진행합니다. ` +\r",
+					"  `특이 사항 없습니다.`;\r",
+					"\r",
+					"pm.environment.set(\"tts_text\", ttsText);\r",
+					"pm.environment.set(\"test_uuid\", uuid);\r",
+					"\r",
+					"// 로그 확인\r",
+					"console.log(\"Generated text:\", ttsText);\r",
+					"console.log(\"Generated uuid:\", uuid);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					"pm.test(\"Status code is 200\", function () {\r",
+					"    pm.response.to.have.status(200);\r",
+					"});\r",
+					"\r",
+					"pm.test(\"Response time < 60s\", function () {\r",
+					"    pm.expect(pm.response.responseTime).to.be.below(60000);\r",
+					"});\r",
+					"\r",
+					"pm.test(\"Response body exists\", function () {\r",
+					"    pm.expect(pm.response.text()).to.not.be.empty;\r",
+					"});"
+				]
+			}
+		}
+	]
+}

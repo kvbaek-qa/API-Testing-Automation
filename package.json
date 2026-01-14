@@ -1,0 +1,14 @@
+{
+  "name": "api-test-automation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:tts": "newman run collections/tts_collection.json --iteration-count 50 --reporters cli,htmlextra --reporter-htmlextra-export report/tts-report.html",
+    "test:stt": "newman run collections/stt_collection.json --iteration-count 50 --reporters cli,htmlextra --reporter-htmlextra-export report/stt-report.html",
+    "test:all": "npm run test:tts && npm run test:stt"
+  },
+  "devDependencies": {
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1"
+  }
+}
