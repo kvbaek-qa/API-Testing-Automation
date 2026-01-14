@@ -25,11 +25,12 @@ jobs:
       - name: Run Newman (capture output)
         run: |
           mkdir -p report
+          # stderr까지 로그에 포함시키기 위해 2>&1 추가
           npx newman run ./collections/tts_collection.json \
             -n 10 \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export report/api-test-report.html \
-            | tee report/newman.log
+            2>&1 | tee report/newman.log
 
       - name: Check failure threshold (max 3)
         run: |
