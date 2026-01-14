@@ -1,0 +1,36 @@
+name: TTS API Testing 50 iterations
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  newman:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Newman
+        run: |
+          mkdir -p report
+          npx newman run ./collections/tts_collection.json -n 50 --reporters cli,htmlextra --reporter-htmlextra-export ./report/api-test-report.html
+
+      - name: Upload HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-report
+          path: report/tts-stab-api-test-report.html
