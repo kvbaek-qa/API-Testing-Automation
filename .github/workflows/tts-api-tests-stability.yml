@@ -3,8 +3,6 @@ name: TTS API Testing 10 iterations (max failures 3)
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -24,26 +22,18 @@ jobs:
         run: |
           npm install newman newman-reporter-htmlextra
 
-      - name: Run Newman (generate HTML + JSON reports)
+      - name: Run Newman (capture output)
         run: |
           mkdir -p report
-          echo "Running Newman..."
           npx newman run ./collections/tts_collection.json \
             -n 10 \
-            --reporters cli,htmlextra,json \
+            --reporters cli,htmlextra \
             --reporter-htmlextra-export report/api-test-report.html \
-            --reporter-json-export report/newman.json \
-            || true
-
-      - name: Debug report folder
-        if: always()
-        run: |
-          echo "===== report folder contents ====="
-          ls -lh report || true
+            | tee report/newman.log
 
       - name: Check failure threshold (max 3)
         run: |
-          node scripts/check-newman-threshold.js report/newman.json 3
+          node scripts/check-newman-threshold-cli.js report/newman.log 3
 
       - name: Upload HTML report artifact
         if: always()
@@ -52,9 +42,9 @@ jobs:
           name: api-test-report-html
           path: report/api-test-report.html
 
-      - name: Upload JSON report artifact
+      - name: Upload Newman log artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-test-report-json
-          path: report/newman.json
+          name: newman-log
+          path: report/newman.log
