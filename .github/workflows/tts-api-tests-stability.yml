@@ -4,6 +4,13 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+  schedule:
+    # 매일 10:00 KST
+    - cron: "0 1 * * *"
+    # 매일 12:00 KST
+    - cron: "0 3 * * *"
+    # 매일 17:00 KST
+    - cron: "0 8 * * *"
 
 jobs:
   newman:
