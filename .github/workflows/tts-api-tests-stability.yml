@@ -36,13 +36,15 @@ jobs:
         if: always()
         id: meta
         run: |
-          # AssertionError 개수 직접 집계
           FAILURE_COUNT=$(grep -c "AssertionError" report/newman.log || true)
           echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
           echo "threshold=10" >> $GITHUB_OUTPUT
 
-          # 실패 요약(어떤 API/어떤 assertion)
-          node scripts/summarize-newman-log.js report/newman.log 8 >> $GITHUB_OUTPUT
+          # scripts/summarize-newman-log.js 는
+          # assertion_error_count=...
+          # failure_bullets<<EOF ... EOF
+          # 형태로 출력해야 함
+          node scripts/summarize-newman-log.js report/newman.log 10 >> $GITHUB_OUTPUT
 
       # ✅ threshold gate (여기서 job 성공/실패 갈림)
       - name: Check failure threshold (max 10)
@@ -63,6 +65,10 @@ jobs:
           name: newman-log
           path: report/newman.log
 
+      - name: Install jq
+        if: always()
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       # ✅ artifact 링크 생성 (Slack에 직접 URL로 넣기 위해 artifact id 조회)
       - name: Build artifact links
         if: always()
@@ -78,7 +84,6 @@ jobs:
 
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          # artifact 상세 페이지 URL (다운로드는 GitHub 권한 필요)
           if [ -n "$HTML_ID" ] && [ "$HTML_ID" != "null" ]; then
             HTML_URL="${RUN_URL}/artifacts/${HTML_ID}"
           else
@@ -95,9 +100,9 @@ jobs:
           echo "html_url=$HTML_URL" >> $GITHUB_OUTPUT
           echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
 
-      # ✅ 성공 알림
-      - name: Slack notify (success)
-        if: success()
+      # ✅ 성공(클린): AssertionError 0
+      - name: Slack notify (success - clean)
+        if: success() && steps.meta.outputs.failure_count == '0'
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -107,12 +112,30 @@ jobs:
               "text": "✅ Newman CI SUCCESS",
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ❌ 실패 알림 (실패 API/Assertion 요약 포함)
+      # ⚠️ 성공(경고): 1~10 (CI는 성공이지만 실패 상세 표시)
+      - name: Slack notify (success - with assertion errors)
+        if: success() && steps.meta.outputs.failure_count != '0'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)",
+              "blocks": [
+                { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*(CI gate passed: <= threshold)*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
+              ]
+            }
+
+      # ❌ 실패: threshold 초과(11 이상)
       - name: Slack notify (failure)
         if: failure()
         uses: slackapi/slack-github-action@v2.0.0
@@ -125,7 +148,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions*\n${{ steps.meta.outputs.failure_summary }}" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
