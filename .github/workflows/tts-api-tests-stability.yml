@@ -25,13 +25,26 @@ jobs:
       - name: Run Newman (capture output)
         run: |
           mkdir -p report
-          # stderr까지 로그에 포함시키기 위해 2>&1 추가
           npx newman run ./collections/tts_collection.json \
             -n 10 \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export report/api-test-report.html \
             2>&1 | tee report/newman.log
 
+      # ✅ newman.log 기반 failureCount/요약 추출 (항상 실행)
+      - name: Extract failure meta (from newman.log)
+        if: always()
+        id: meta
+        run: |
+          # AssertionError 개수 직접 집계
+          FAILURE_COUNT=$(grep -c "AssertionError" report/newman.log || true)
+          echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
+          echo "threshold=10" >> $GITHUB_OUTPUT
+
+          # 실패 요약(어떤 API/어떤 assertion)
+          node scripts/summarize-newman-log.js report/newman.log 8 >> $GITHUB_OUTPUT
+
+      # ✅ threshold gate (여기서 job 성공/실패 갈림)
       - name: Check failure threshold (max 10)
         run: |
           node scripts/check-newman-threshold.js report/newman.log 10
@@ -50,19 +63,37 @@ jobs:
           name: newman-log
           path: report/newman.log
 
-      # ✅ Slack 메시지에 넣을 메타 추출 (성공/실패 상관없이 항상 실행)
-      - name: Extract failure count
+      # ✅ artifact 링크 생성 (Slack에 직접 URL로 넣기 위해 artifact id 조회)
+      - name: Build artifact links
         if: always()
-        id: meta
+        id: links
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # check-newman-threshold.js가 출력하는 라인:
-          # Newman failure count (AssertionError): X
-          FAILURE_COUNT=$(grep -oE "Newman failure count \(AssertionError\): [0-9]+" report/newman.log | tail -n 1 | awk '{print $NF}')
-          if [ -z "$FAILURE_COUNT" ]; then FAILURE_COUNT=0; fi
+          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+          JSON=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$API_URL")
 
-          echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
-          echo "threshold=10" >> $GITHUB_OUTPUT
-          echo "report_path=report/api-test-report.html" >> $GITHUB_OUTPUT
+          HTML_ID=$(echo "$JSON" | jq -r '.artifacts[] | select(.name=="api-test-report-html") | .id' | head -n 1)
+          LOG_ID=$(echo "$JSON" | jq -r '.artifacts[] | select(.name=="newman-log") | .id' | head -n 1)
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # artifact 상세 페이지 URL (다운로드는 GitHub 권한 필요)
+          if [ -n "$HTML_ID" ] && [ "$HTML_ID" != "null" ]; then
+            HTML_URL="${RUN_URL}/artifacts/${HTML_ID}"
+          else
+            HTML_URL="${RUN_URL}"
+          fi
+
+          if [ -n "$LOG_ID" ] && [ "$LOG_ID" != "null" ]; then
+            LOG_URL="${RUN_URL}/artifacts/${LOG_ID}"
+          else
+            LOG_URL="${RUN_URL}"
+          fi
+
+          echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
+          echo "html_url=$HTML_URL" >> $GITHUB_OUTPUT
+          echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
 
       # ✅ 성공 알림
       - name: Slack notify (success)
@@ -75,28 +106,13 @@ jobs:
             {
               "text": "✅ Newman CI SUCCESS",
               "blocks": [
-                {
-                  "type": "header",
-                  "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Run*: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n*Artifacts*: (Run 페이지에서 `api-test-report-html`, `newman-log` 확인)"
-                  }
-                }
+                { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ❌ 실패 알림
+      # ❌ 실패 알림 (실패 API/Assertion 요약 포함)
       - name: Slack notify (failure)
         if: failure()
         uses: slackapi/slack-github-action@v2.0.0
@@ -107,23 +123,9 @@ jobs:
             {
               "text": "❌ Newman CI FAILED",
               "blocks": [
-                {
-                  "type": "header",
-                  "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Why*: AssertionError count exceeded threshold (or Newman step failed)\n*Run*: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n*Artifacts*: (Run 페이지에서 `api-test-report-html`, `newman-log` 확인)"
-                  }
-                }
+                { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions*\n${{ steps.meta.outputs.failure_summary }}" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
