@@ -1,13 +1,14 @@
 name: TTS API Testing 10 iterations (max failures 10)
 
 on:
+  push:
+    branches: ["main"]
+
   schedule:
     # 05:17 KST (20:17 UTC, 전날)
     - cron: "17 20 * * *"
-
     # 06:11 KST (21:11 UTC, 전날)
     - cron: "11 21 * * *"
-
     # 17:11 KST (08:11 UTC)
     - cron: "11 8 * * *"
 
