@@ -1,17 +1,22 @@
 name: TTS API Testing 10 iterations (max failures 10)
 
 on:
-  push:
-    branches: ["main"]
-  workflow_dispatch:
   schedule:
-    # 매일 09:40 KST (00:40 UTC)
-    - cron: "40 0 * * *"
-    # 매일 11:40 KST (02:40 UTC)
-    - cron: "40 2 * * *"
-    # 매일 17:40 KST (08:40 UTC)
-    - cron: "40 8 * * *"
-    
+    # 05:17 KST (20:17 UTC, 전날)
+    - cron: "17 20 * * *"
+
+    # 06:11 KST (21:11 UTC, 전날)
+    - cron: "11 21 * * *"
+
+    # 17:11 KST (08:11 UTC)
+    - cron: "11 8 * * *"
+
+  workflow_dispatch:
+
+concurrency:
+  group: api-test-schedule
+  cancel-in-progress: false
+
 jobs:
   newman:
     runs-on: ubuntu-latest
