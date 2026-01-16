@@ -44,6 +44,20 @@ jobs:
             --reporter-htmlextra-export report/api-test-report.html \
             2>&1 | tee report/newman.log
 
+      # ✅ 트리거/실행자 메타 (항상 실행)
+      - name: Set trigger info
+        if: always()
+        id: trigger
+        run: |
+          echo "trigger_type=${{ github.event_name }}" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "trigger_user=scheduled" >> $GITHUB_OUTPUT
+          else
+            # push / workflow_dispatch 모두 actor가 실행자(푸시한 사람/수동 실행자)
+            echo "trigger_user=${{ github.actor }}" >> $GITHUB_OUTPUT
+          fi
+
       # ✅ newman.log 기반 failureCount/요약 추출 (항상 실행)
       - name: Extract failure meta (from newman.log)
         if: always()
@@ -125,6 +139,7 @@ jobs:
               "text": "✅ Newman CI SUCCESS",
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
@@ -142,6 +157,7 @@ jobs:
               "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)",
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*(CI gate passed: <= threshold)*" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
@@ -160,6 +176,7 @@ jobs:
               "text": "❌ Newman CI FAILED",
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
