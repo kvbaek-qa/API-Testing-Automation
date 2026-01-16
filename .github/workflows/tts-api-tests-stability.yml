@@ -5,13 +5,13 @@ on:
     branches: ["main"]
   workflow_dispatch:
   schedule:
-    # 매일 10:00 KST
-    - cron: "0 1 * * *"
-    # 매일 12:00 KST
-    - cron: "0 3 * * *"
-    # 매일 17:00 KST
-    - cron: "0 8 * * *"
-
+    # 매일 09:40 KST (00:40 UTC)
+    - cron: "40 0 * * *"
+    # 매일 11:40 KST (02:40 UTC)
+    - cron: "40 2 * * *"
+    # 매일 17:40 KST (08:40 UTC)
+    - cron: "40 8 * * *"
+    
 jobs:
   newman:
     runs-on: ubuntu-latest
