@@ -1,4 +1,4 @@
-name: TTS API Testing 10 iterations (max failures 10)
+name: TTS API Testing 50 iterations (max failures 40)
 
 on:
   push:
@@ -21,6 +21,11 @@ concurrency:
 jobs:
   newman:
     runs-on: ubuntu-latest
+    env:
+      ITERATIONS: "50"
+      APIS_PER_ITERATION: "12"
+      ASSERTIONS_PER_API: "3"
+      THRESHOLD: "40"
 
     steps:
       - name: Checkout
@@ -39,7 +44,7 @@ jobs:
         run: |
           mkdir -p report
           npx newman run ./collections/tts_collection.json \
-            -n 10 \
+            -n $ITERATIONS \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export report/api-test-report.html \
             2>&1 | tee report/newman.log
@@ -58,14 +63,22 @@ jobs:
             echo "trigger_user=${{ github.actor }}" >> $GITHUB_OUTPUT
           fi
 
-      # ✅ newman.log 기반 failureCount/요약 추출 (항상 실행)
+      # ✅ newman.log 기반 failureCount/요약/실패율 추출 (항상 실행)
       - name: Extract failure meta (from newman.log)
         if: always()
         id: meta
         run: |
           FAILURE_COUNT=$(grep -c "AssertionError" report/newman.log || true)
+
+          TOTAL_ASSERTIONS=$(( $ITERATIONS * $APIS_PER_ITERATION * $ASSERTIONS_PER_API ))
+
+          # 소수점 2자리 % 계산 (bc 설치 없이 awk로)
+          FAILURE_RATE=$(awk -v f="$FAILURE_COUNT" -v t="$TOTAL_ASSERTIONS" 'BEGIN { if (t==0) print "0.00"; else printf "%.2f", (f/t)*100 }')
+
           echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
-          echo "threshold=10" >> $GITHUB_OUTPUT
+          echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+          echo "total_assertions=$TOTAL_ASSERTIONS" >> $GITHUB_OUTPUT
+          echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
 
           # scripts/summarize-newman-log.js 는
           # assertion_error_count=...
@@ -74,9 +87,9 @@ jobs:
           node scripts/summarize-newman-log.js report/newman.log 10 >> $GITHUB_OUTPUT
 
       # ✅ threshold gate (여기서 job 성공/실패 갈림)
-      - name: Check failure threshold (max 10)
+      - name: Check failure threshold (max 40)
         run: |
-          node scripts/check-newman-threshold.js report/newman.log 10
+          node scripts/check-newman-threshold.js report/newman.log $THRESHOLD
 
       - name: Upload HTML report artifact
         if: always()
@@ -140,12 +153,12 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *0.00%* (`0` / `${{ steps.meta.outputs.total_assertions }}`)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ⚠️ 성공(경고): 1~10 (CI는 성공이지만 실패 상세 표시)
+      # ⚠️ 성공(경고): 1~40 (CI는 성공이지만 실패 상세 표시)
       - name: Slack notify (success - with assertion errors)
         if: success() && steps.meta.outputs.failure_count != '0'
         uses: slackapi/slack-github-action@v2.0.0
@@ -158,13 +171,13 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*(CI gate passed: <= threshold)*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*(CI gate passed: <= threshold)*" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ❌ 실패: threshold 초과(11 이상)
+      # ❌ 실패: threshold 초과(41 이상)
       - name: Slack notify (failure)
         if: failure()
         uses: slackapi/slack-github-action@v2.0.0
@@ -177,7 +190,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
