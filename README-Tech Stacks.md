@@ -1,4 +1,4 @@
-## 🧰 Tech Stack & Tools
+## Tech Stack & Tools
 
 ### Test Design & Automation
 - **Postman**
