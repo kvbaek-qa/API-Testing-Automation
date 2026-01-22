@@ -1,4 +1,4 @@
-name: TTS API Testing 50 iterations (max failures 40)
+name: TTS API Testing 50 iterations (global<=40, per-API status<=3)
 
 on:
   push:
@@ -25,7 +25,12 @@ jobs:
       ITERATIONS: "50"
       APIS_PER_ITERATION: "12"
       ASSERTIONS_PER_API: "3"
+
+      # 글로벌 gate (AssertionError 전체 개수)
       THRESHOLD: "40"
+
+      # API별 gate (Status code mismatch만, API별 카운트 기준)
+      STATUS_THRESHOLD_PER_API: "3"
 
     steps:
       - name: Checkout
@@ -59,7 +64,6 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "trigger_user=scheduled" >> $GITHUB_OUTPUT
           else
-            # push / workflow_dispatch 모두 actor가 실행자(푸시한 사람/수동 실행자)
             echo "trigger_user=${{ github.actor }}" >> $GITHUB_OUTPUT
           fi
 
@@ -69,27 +73,36 @@ jobs:
         id: meta
         run: |
           FAILURE_COUNT=$(grep -c "AssertionError" report/newman.log || true)
-
           TOTAL_ASSERTIONS=$(( $ITERATIONS * $APIS_PER_ITERATION * $ASSERTIONS_PER_API ))
 
-          # 소수점 2자리 % 계산 (bc 설치 없이 awk로)
           FAILURE_RATE=$(awk -v f="$FAILURE_COUNT" -v t="$TOTAL_ASSERTIONS" 'BEGIN { if (t==0) print "0.00"; else printf "%.2f", (f/t)*100 }')
 
           echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
           echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
+          echo "status_threshold_per_api=$STATUS_THRESHOLD_PER_API" >> $GITHUB_OUTPUT
           echo "total_assertions=$TOTAL_ASSERTIONS" >> $GITHUB_OUTPUT
           echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
 
-          # scripts/summarize-newman-log.js 는
-          # assertion_error_count=...
-          # failure_bullets<<EOF ... EOF
-          # 형태로 출력해야 함
-          node scripts/summarize-newman-log.js report/newman.log 10 >> $GITHUB_OUTPUT
+          node scripts/summarize-newman-log.js report/newman.log 10 $STATUS_THRESHOLD_PER_API >> $GITHUB_OUTPUT
 
-      # ✅ threshold gate (여기서 job 성공/실패 갈림)
-      - name: Check failure threshold (max 40)
+      # ✅ Gate 판정은 하되, 여기서 job을 죽이지 않음 (Slack 4분기 위해)
+      - name: Check gates (global + per-API status)
+        if: always()
+        id: gate
+        continue-on-error: true
         run: |
-          node scripts/check-newman-threshold.js report/newman.log $THRESHOLD
+          node scripts/check-newman-threshold.js report/newman.log $THRESHOLD $STATUS_THRESHOLD_PER_API
+
+      # ✅ gate 결과를 output으로 고정 (항상 실행)
+      - name: Set gate result
+        if: always()
+        id: gate_result
+        run: |
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "gate_pass=true" >> $GITHUB_OUTPUT
+          else
+            echo "gate_pass=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload HTML report artifact
         if: always()
@@ -109,7 +122,7 @@ jobs:
         if: always()
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # ✅ artifact 링크 생성 (Slack에 직접 URL로 넣기 위해 artifact id 조회)
+      # ✅ artifact 링크 생성
       - name: Build artifact links
         if: always()
         id: links
@@ -140,58 +153,72 @@ jobs:
           echo "html_url=$HTML_URL" >> $GITHUB_OUTPUT
           echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
 
-      # ✅ 성공(클린): AssertionError 0
-      - name: Slack notify (success - clean)
-        if: success() && steps.meta.outputs.failure_count == '0'
+      # ---------------------------------------------------------
+      # Slack 4분기
+      # gate_pass: true/false
+      # failure_count: 0 / >0
+      # ---------------------------------------------------------
+
+      # 1) ✅ Clean (assertion error 0)
+      - name: Slack notify (1. clean)
+        if: always() && steps.meta.outputs.failure_count == '0'
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "✅ Newman CI SUCCESS",
+              "text": "✅ Newman CI PASS (clean)",
               "blocks": [
-                { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI SUCCESS" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI PASS (clean)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *0.00%* (`0` / `${{ steps.meta.outputs.total_assertions }}`)" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*FailureCount(AssertionError)*: *0*\n*Global Threshold*: `${{ steps.meta.outputs.threshold }}`\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ⚠️ 성공(경고): 1~40 (CI는 성공이지만 실패 상세 표시)
-      - name: Slack notify (success - with assertion errors)
-        if: success() && steps.meta.outputs.failure_count != '0'
+      # 2) ⚠️ Warning PASS (assertion error >0, global pass, per-API pass)
+      - name: Slack notify (2. pass with assertion errors)
+        if: always() && steps.meta.outputs.failure_count != '0' && steps.gate_result.outputs.gate_pass == 'true'
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)",
+              "text": "⚠️ Newman CI PASS (warnings: assertion errors)",
               "blocks": [
-                { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI SUCCESS (with AssertionErrors)" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI PASS (warnings: assertion errors)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*(CI gate passed: <= threshold)*" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`\n*Gate result*: PASS (global+per-API)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
 
-      # ❌ 실패: threshold 초과(41 이상)
-      - name: Slack notify (failure)
-        if: failure()
+      # 3) ❌ Gate FAIL (global은 pass일 수도 있지만, per-API status fail 같은 케이스 포함)
+      #    = "assertion error 있지만 global threshold 미만 + API별 threshold fail"를 여기로 태움
+      - name: Slack notify (3. gate failed but global may be under threshold)
+        if: always() && steps.meta.outputs.failure_count != '0' && steps.gate_result.outputs.gate_pass == 'false'
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "❌ Newman CI FAILED",
+              "text": "❌ Newman CI FAILED (per-API status gate breach or global breach)",
               "blocks": [
-                { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED (gate breach)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / *Threshold*: *${{ steps.meta.outputs.threshold }}*\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`\n*Gate result*: FAIL (global OR per-API status)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
+
+      # 4) (job 최종 상태 반영) gate_fail이면 job을 진짜 실패로 마무리
+      - name: Fail job if gate failed
+        if: always() && steps.gate_result.outputs.gate_pass == 'false'
+        run: |
+          echo "[FAIL] Gates failed. Marking job as failed."
+          exit 1
