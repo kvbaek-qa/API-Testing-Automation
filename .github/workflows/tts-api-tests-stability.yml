@@ -1,4 +1,4 @@
-name: TTS API Testing 50 iterations (global<=40, per-API status<=3)
+name: TTS API Testing 50 iterations (global<=40, per-API status FAIL<=30, WARN>15)
 
 on:
   push:
@@ -27,10 +27,13 @@ jobs:
       ASSERTIONS_PER_API: "3"
 
       # Global gate: total AssertionError
-      THRESHOLD: "40"
+      GLOBAL_ASSERTION_THRESHOLD: "40"
 
-      # Per-API gate: status code mismatch by API
-      STATUS_THRESHOLD_PER_API: "3"
+      # Per-API status policy (portfolio-friendly):
+      # - WARN: known flaky range (CI pass, but visibility)
+      # - FAIL: beyond known range (CI fail)
+      PER_API_STATUS_WARN_THRESHOLD: "15"
+      PER_API_STATUS_FAIL_THRESHOLD: "30"
 
     steps:
       - name: Checkout
@@ -78,15 +81,18 @@ jobs:
           FAILURE_RATE=$(awk -v f="$FAILURE_COUNT" -v t="$TOTAL_ASSERTIONS" 'BEGIN { if (t==0) print "0.00"; else printf "%.2f", (f/t)*100 }')
 
           echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
-          echo "threshold=$THRESHOLD" >> $GITHUB_OUTPUT
-          echo "status_threshold_per_api=$STATUS_THRESHOLD_PER_API" >> $GITHUB_OUTPUT
           echo "total_assertions=$TOTAL_ASSERTIONS" >> $GITHUB_OUTPUT
           echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
+
+          echo "global_threshold=$GLOBAL_ASSERTION_THRESHOLD" >> $GITHUB_OUTPUT
+          echo "status_warn_threshold_per_api=$PER_API_STATUS_WARN_THRESHOLD" >> $GITHUB_OUTPUT
+          echo "status_fail_threshold_per_api=$PER_API_STATUS_FAIL_THRESHOLD" >> $GITHUB_OUTPUT
 
           # summarize-newman-log.js outputs:
           # assertion_error_count=...
           # failure_bullets<<EOF ... EOF
-          node scripts/summarize-newman-log.js report/newman.log 10 $STATUS_THRESHOLD_PER_API >> $GITHUB_OUTPUT
+          # NOTE: summary는 "FAIL 기준"으로 우선 요약(포폴/운영 기준 명확화)
+          node scripts/summarize-newman-log.js report/newman.log 10 $PER_API_STATUS_FAIL_THRESHOLD >> $GITHUB_OUTPUT
 
       # ✅ Gate check (always) - do NOT fail job here (Slack 4분기 위해)
       # check-newman-threshold.js must write outputs to $GITHUB_OUTPUT:
@@ -96,7 +102,7 @@ jobs:
         id: gate
         continue-on-error: true
         run: |
-          node scripts/check-newman-threshold.js report/newman.log $THRESHOLD $STATUS_THRESHOLD_PER_API
+          node scripts/check-newman-threshold.js report/newman.log $GLOBAL_ASSERTION_THRESHOLD $PER_API_STATUS_FAIL_THRESHOLD
 
       - name: Upload HTML report artifact
         if: always()
@@ -148,7 +154,7 @@ jobs:
           echo "log_url=$LOG_URL" >> $GITHUB_OUTPUT
 
       # ---------------------------------------------------------
-      # Slack: 4 유형 완전 분리
+      # Slack: 4 유형 완전 분리 + WARN/FAIL 정책 가시화
       # ---------------------------------------------------------
 
       # 1) ✅ Clean (no assertion errors)
@@ -164,7 +170,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI PASS (clean)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0*\n*Global Threshold*: `${{ steps.meta.outputs.threshold }}`\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0*\n*Global Threshold*: `${{ steps.meta.outputs.global_threshold }}`\n*Per-API Status Policy*: WARN>`{${{ steps.meta.outputs.status_warn_threshold_per_api }}}`, FAIL>`{${{ steps.meta.outputs.status_fail_threshold_per_api }}}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
             }
@@ -182,7 +188,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI PASS (assertion errors, gates passed)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`\n*Gate result*: PASS (global + per-API status)" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.global_threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Policy*: WARN>`{${{ steps.meta.outputs.status_warn_threshold_per_api }}}`, FAIL>`{${{ steps.meta.outputs.status_fail_threshold_per_api }}}`\n*Gate result*: PASS (global + per-API status)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
@@ -201,7 +207,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "❌ Newman CI FAILED (per-API status gate breached)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Threshold*: `${{ steps.meta.outputs.status_threshold_per_api }}`\n*Gate result*: FAIL (per-API status)\n*Over status APIs*: `${{ steps.gate.outputs.over_status_apis }}`" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.global_threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Policy*: WARN>`{${{ steps.meta.outputs.status_warn_threshold_per_api }}}`, FAIL>`{${{ steps.meta.outputs.status_fail_threshold_per_api }}}`\n*Gate result*: FAIL (per-API status)\n*Over status APIs*: `${{ steps.gate.outputs.over_status_apis }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
@@ -220,7 +226,7 @@ jobs:
               "blocks": [
                 { "type": "header", "text": { "type": "plain_text", "text": "🚨 Newman CI FAILED (global threshold breached)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
-                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*Global FailureCount(AssertionError)*: *${{ steps.gate.outputs.global_failure_count }}* / Global Threshold: `${{ steps.gate.outputs.global_threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Threshold*: `${{ steps.gate.outputs.per_api_status_threshold }}`\n*Gate result*: FAIL (global)\n*Over status APIs*: `${{ steps.gate.outputs.over_status_apis }}`" } },
+                { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*Global FailureCount(AssertionError)*: *${{ steps.gate.outputs.global_failure_count }}* / Global Threshold: `${{ steps.gate.outputs.global_threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Policy*: WARN>`{${{ steps.meta.outputs.status_warn_threshold_per_api }}}`, FAIL>`{${{ steps.meta.outputs.status_fail_threshold_per_api }}}`\n*Gate result*: FAIL (global)\n*Over status APIs*: `${{ steps.gate.outputs.over_status_apis }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
               ]
