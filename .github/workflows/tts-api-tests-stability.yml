@@ -161,7 +161,7 @@ jobs:
       # Slack: 5 유형 완전 분리 (clean / pass / pass-with-warn / fail-per-api / fail-global)
       # ---------------------------------------------------------
 
-      # 1) ✅ Clean (no assertion errors)
+      # 1) 🚀✅ Clean (no assertion errors)
       - name: Slack notify (1. clean)
         if: always() && steps.meta.outputs.failure_count == '0'
         uses: slackapi/slack-github-action@v2.0.0
@@ -170,9 +170,9 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "✅ Newman CI PASS (clean)",
+              "text": "🚀✅ Newman CI PASS (clean)",
               "blocks": [
-                { "type": "header", "text": { "type": "plain_text", "text": "✅ Newman CI PASS (clean)" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "🚀✅ Newman CI PASS (clean)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *0*\n*Global Threshold*: `${{ steps.meta.outputs.global_threshold }}`\n*Per-API Status Policy*: WARN>`${{ steps.meta.outputs.status_warn_threshold_per_api }}`, FAIL>`${{ steps.meta.outputs.status_fail_threshold_per_api }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Run*: ${{ steps.links.outputs.run_url }}\n*HTML Report*: ${{ steps.links.outputs.html_url }}\n*newman.log*: ${{ steps.links.outputs.log_url }}" } }
@@ -203,7 +203,7 @@ jobs:
               ]
             }
 
-      # 3) ⚠️ PASS with WARN (gates passed, but WARN present)
+      # 3) ✅⚠️ PASS with WARN (gates passed, but WARN present)
       - name: Slack notify (3. pass - with warn)
         if: |
           always() &&
@@ -217,9 +217,9 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "⚠️ Newman CI PASS (with WARN: known flaky range)",
+              "text": "✅⚠️ Newman CI PASS (with WARN: known flaky range)",
               "blocks": [
-                { "type": "header", "text": { "type": "plain_text", "text": "⚠️ Newman CI PASS (with WARN: known flaky range)" } },
+                { "type": "header", "text": { "type": "plain_text", "text": "✅⚠️ Newman CI PASS (with WARN: known flaky range)" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Trigger*: `${{ steps.trigger.outputs.trigger_type }}`\n*Actor*: `${{ steps.trigger.outputs.trigger_user }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo*: `${{ github.repository }}`\n*Branch*: `${{ github.ref_name }}`\n*FailureCount(AssertionError)*: *${{ steps.meta.outputs.failure_count }}* / Global Threshold: `${{ steps.meta.outputs.global_threshold }}`\n*Assertion Failure Rate*: *${{ steps.meta.outputs.failure_rate }}%* (`${{ steps.meta.outputs.failure_count }}` / `${{ steps.meta.outputs.total_assertions }}`)\n*Per-API Status Policy*: WARN>`${{ steps.meta.outputs.status_warn_threshold_per_api }}`, FAIL>`${{ steps.meta.outputs.status_fail_threshold_per_api }}`\n*Gate result*: PASS (global + per-API status)\n*WARN status APIs*: `${{ steps.gate.outputs.warn_status_apis }}`" } },
                 { "type": "section", "text": { "type": "mrkdwn", "text": "*Failed APIs / Assertions (summary)*\n${{ steps.meta.outputs.failure_bullets }}" } },
