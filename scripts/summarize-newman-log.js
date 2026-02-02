@@ -1,30 +1,67 @@
 // scripts/summarize-newman-log.js
 // report/newman.log에서 AssertionError 블록을 파싱해서 Slack에 넣기 좋은 요약을 만든다.
 //
+// ✅ YAML 변경 없이 호환되는 최종본
+// - 기존 사용 형태 유지:
+//   node scripts/summarize-newman-log.js report/newman.log 10 <perApiStatusFailThreshold>
+//   (logFile) (topRequests) (perApiStatusFailThreshold)
+//
+// - (선택) 4번째 인자로 WARN threshold도 받을 수 있음 (YAML이 안 넘겨도 됨)
+//   node scripts/summarize-newman-log.js report/newman.log 10 30 15
+//
 // 기능:
-// - inside "..." 라인에 있는 request(실패 API) 기준으로 집계
-// - AssertionError 라인의 assertion 이름 기준으로 집계
-// - (선택) API별 Status Code mismatch threshold를 넘긴 항목에 표시(⚠ OVER)
-// - GitHub Actions output 형식으로 출력 (failure_bullets)
+// - inside "..." 라인의 request(실패 API) 기준 집계
+// - AssertionError 라인의 assertion 이름 기준 집계
+// - request별 status-code 관련 실패 수 집계
+// - threshold 초과 표시:
+//   - FAIL: statusCnt > perApiStatusFailThreshold -> "🚨 FAIL(status)"
+//   - WARN: (옵션) statusCnt > perApiStatusWarnThreshold -> "⚠ WARN(status)"
 //
-// 사용 예시:
-//   node scripts/summarize-newman-log.js report/newman.log 10 3
-//   (logFile) (topRequests) (perApiStatusThreshold)
-//
-// 기본값:
-//   logFile: report/newman.log
-//   topRequests: 10
-//   perApiStatusThreshold: 3
+// 출력(GitHub Actions output friendly):
+// - assertion_error_count=...
+// - failure_bullets<<EOF ... EOF
+// - (추가 출력은 YAML이 참조하지 않아도 무해)
 
 const fs = require("fs");
 
 const logFile = process.argv[2] || "report/newman.log";
 const topRequests = Number(process.argv[3] ?? 10);
-const perApiStatusThreshold = Number(process.argv[4] ?? 3);
+
+// YAML이 넘기는 3번째 인자(기존 perApiStatusThreshold)는 여기서 "FAIL threshold"로 해석
+const perApiStatusFailThreshold = Number(process.argv[4] ?? 3);
+
+// WARN threshold는 선택 (없으면 WARN 표시를 생략하거나 FAIL과 동일 처리)
+// ✅ YAML은 안 넘기므로 기본은 "WARN 비활성"로 두는 게 가장 안전
+const perApiStatusWarnThresholdRaw = process.argv[5];
+const perApiStatusWarnThreshold =
+  perApiStatusWarnThresholdRaw === undefined || perApiStatusWarnThresholdRaw === null
+    ? null
+    : Number(perApiStatusWarnThresholdRaw);
+
+function die(msg) {
+  console.error(msg);
+  process.exit(1);
+}
 
 if (!fs.existsSync(logFile)) {
-  console.error(`[FAIL] Log file not found: ${logFile}`);
-  process.exit(1);
+  die(`[FAIL] Log file not found: ${logFile}`);
+}
+
+if (Number.isNaN(topRequests) || Number.isNaN(perApiStatusFailThreshold)) {
+  die(
+    `[FAIL] Invalid numeric args. topRequests=${process.argv[3]} fail=${process.argv[4]}`
+  );
+}
+
+if (perApiStatusWarnThreshold !== null) {
+  if (Number.isNaN(perApiStatusWarnThreshold)) {
+    die(`[FAIL] Invalid WARN threshold: ${process.argv[5]}`);
+  }
+  if (perApiStatusWarnThreshold > perApiStatusFailThreshold) {
+    die(
+      `[FAIL] Invalid thresholds: WARN(${perApiStatusWarnThreshold}) must be <= FAIL(${perApiStatusFailThreshold}).`
+    );
+  }
 }
 
 const lines = fs.readFileSync(logFile, "utf8").split(/\r?\n/);
@@ -41,8 +78,7 @@ function bump(req, assertion) {
   m.set(a, (m.get(a) || 0) + 1);
 }
 
-// (추가) request별 status-code 관련 실패 카운트
-// - assertionName에 "Status code" 또는 "response code" 포함 시 status mismatch로 집계
+// request별 status-code 관련 실패 카운트
 const statusByReq = new Map();
 function bumpStatus(req) {
   const r = req || "(unknown request)";
@@ -50,9 +86,7 @@ function bumpStatus(req) {
 }
 
 // 패턴
-// 1) "1. AssertionError   Status code is 200" 같은 라인
 const assertionHeader = /^\s*\d+\.\s+AssertionError\s+(.*)\s*$/i;
-// 2) inside "...." 라인 (여기에서 실패 API 이름을 확정)
 const insideLine = /^\s*inside\s+"(.+)"\s*$/i;
 
 function isStatusCodeAssertion(assertionName) {
@@ -66,11 +100,9 @@ for (let i = 0; i < lines.length; i++) {
   const ah = line.match(assertionHeader);
   if (!ah) continue;
 
-  // AssertionError 발견
   assertionErrorCount += 1;
-  const assertionName = (ah[1] || "").trim(); // 예: "Status code is 200"
+  const assertionName = (ah[1] || "").trim();
 
-  // 해당 AssertionError 블록에서 'inside "..."'를 찾는다 (보통 몇 줄 아래에 있음)
   let requestName = "";
   for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
     const m = lines[j].match(insideLine);
@@ -78,7 +110,6 @@ for (let i = 0; i < lines.length; i++) {
       requestName = (m[1] || "").trim();
       break;
     }
-    // 다음 AssertionError 블록이 시작되면 중단
     if (assertionHeader.test(lines[j])) break;
   }
 
@@ -89,7 +120,7 @@ for (let i = 0; i < lines.length; i++) {
   }
 }
 
-// Slack용 불렛 텍스트 생성 (request별 총 실패 수 기준 정렬)
+// request별 총 실패 수 기준 정렬
 const reqList = [...agg.entries()]
   .map(([req, m]) => {
     const total = [...m.values()].reduce((s, v) => s + v, 0);
@@ -98,13 +129,22 @@ const reqList = [...agg.entries()]
   })
   .sort((a, b) => b.total - a.total);
 
-// 표시: status threshold 초과 시 ⚠ OVER
+function statusMark(statusCnt) {
+  // FAIL 기준
+  if (statusCnt > perApiStatusFailThreshold) return " 🚨 FAIL(status)";
+
+  // WARN 기준은 YAML이 넘기지 않으므로 기본적으로는 표시 안 함.
+  // (하지만 스크립트를 CLI로 직접 돌릴 땐 4번째 인자 넣어서 WARN도 보고 싶을 수 있음)
+  if (perApiStatusWarnThreshold !== null && statusCnt > perApiStatusWarnThreshold) {
+    return " ⚠ WARN(status)";
+  }
+
+  return "";
+}
+
 function formatReqTitle(req, total, statusCnt) {
-  const overStatus = statusCnt > perApiStatusThreshold;
-  const overMark = overStatus ? " ⚠ OVER(status)" : "";
-  // statusCnt도 같이 보여주면 “어떤 실패가 status 쪽인지” 바로 보임
   const statusInfo = statusCnt > 0 ? `, status(x${statusCnt})` : "";
-  return `• *${req}* (x${total}${statusInfo})${overMark}`;
+  return `• *${req}* (x${total}${statusInfo})${statusMark(statusCnt)}`;
 }
 
 let bullets = "";
@@ -124,8 +164,15 @@ if (reqList.length === 0) {
     .join("\n");
 }
 
-// ✅ GitHub Actions output 형식으로 출력
+// ✅ GitHub Actions output 형식으로 출력 (YAML 호환 키 유지)
 console.log(`assertion_error_count=${assertionErrorCount}`);
 console.log("failure_bullets<<EOF");
 console.log(bullets);
 console.log("EOF");
+
+// (추가 출력: YAML이 안 써도 무해 — 나중에 확장용)
+const failStatusReqCsv = reqList
+  .filter(({ statusCnt }) => statusCnt > perApiStatusFailThreshold)
+  .map(({ req, statusCnt }) => `${req}:${statusCnt}`)
+  .join(",");
+console.log(`fail_status_req_csv=${failStatusReqCsv}`);
